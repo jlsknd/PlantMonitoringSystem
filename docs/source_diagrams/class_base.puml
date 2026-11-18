@@ -1,0 +1,297 @@
+@startuml PlantMonitoringSystem
+!theme plain
+left to right direction
+
+package "Model" {
+
+  abstract class User {
+    +id: String
+    +name: String
+    +email: String
+    +password: String
+  }
+  class Agronomist {}
+  class CropScout {}
+  class Analyst {}
+  class GovernmentAgency {}
+  class Engineer {}
+  User <|-- Agronomist
+  User <|-- CropScout
+  User <|-- Analyst
+  User <|-- GovernmentAgency
+  User <|-- Engineer
+
+  class Field {
+    +id: String
+    +coordinates: String
+  }
+  class Sensor {
+    +id: String
+    +type: String
+    +coordinates: String
+    +status: String
+    +fieldId: String
+  }
+  class SensorReading {
+    +id: String
+    +type: String
+    +value: Double
+    +readingTime: LocalDateTime
+    +sensorId: String
+  }
+  class ProblemArea {
+    +id: String
+    +problemType: String
+    +coordinates: String
+    +status: String
+    +fieldId: String
+  }
+  class FieldInspection {
+    +id: String
+    +timestamp: LocalDateTime
+    +coordinates: String
+    +description: String
+    +photoReport: List<String>
+    +fieldId: String
+    +inspectorId: String
+    +problemAreaId: String
+  }
+  class Task {
+    +id: String
+    +taskType: String
+    +status: String
+    +deadline: LocalDateTime
+    +agronomistId: String
+    +problemAreaId: String
+  }
+  class Report {
+    +id: String
+    +period: String
+    +content: String
+    +authorId: String
+    +fieldIds: List<String>
+  }
+
+  Field "1" *-- "0..*" Sensor            : has
+  Sensor "1" *-- "0..*" SensorReading    : produces
+  Field "1" *-- "0..*" ProblemArea       : detectsOn
+  ProblemArea "1" -- "0..*" FieldInspection : confirmedBy
+  Field "1" -- "0..*" FieldInspection    : coversField
+  ProblemArea "1" -- "0..*" Task         : generates
+  Report "0..*" -- "0..*" SensorReading  : contains
+  Report "1" o-- "0..*" FieldInspection  : covers
+
+  interface IRepository <<interface>> {
+    +getById(id: String): Object
+    +save(obj: Object): void
+    +delete(id: String): void
+  }
+
+  class SensorRepository {
+    +getSensors(): List<Sensor>
+    +registerSensor(sensor: Sensor): void
+  }
+  class SensorReadingRepository {
+    +getReadings(sensorId: String, period: String): List<SensorReading>
+    +getLatestByField(fieldId: String): List<SensorReading>
+    +saveReading(reading: SensorReading): void
+  }
+  class ProblemAreaRepository {
+    +getProblemAreas(): List<ProblemArea>
+    +getByField(fieldId: String): List<ProblemArea>
+    +registerProblem(area: ProblemArea): void
+    +updateStatus(id: String, status: String): void
+  }
+  class InspectionRepository {
+    +getInspections(): List<FieldInspection>
+    +getByField(fieldId: String): List<FieldInspection>
+    +createInspection(inspection: FieldInspection): void
+    +updateInspection(inspection: FieldInspection): void
+  }
+  class TaskRepository {
+    +getTasksByStatus(status: String): List<Task>
+    +createTask(task: Task): void
+    +updateTask(task: Task): void
+  }
+  class ReportRepository {
+    +getReports(period: String): List<Report>
+    +createReport(report: Report): void
+  }
+  class FieldRepository {
+    +getFields(): List<Field>
+    +updateField(field: Field): void
+  }
+  class UserRepository {
+    +getUsersByRole(role: String): List<User>
+    +createUser(user: User): void
+    +updateUser(user: User): void
+  }
+
+  IRepository <|.. SensorRepository
+  IRepository <|.. SensorReadingRepository
+  IRepository <|.. ProblemAreaRepository
+  IRepository <|.. InspectionRepository
+  IRepository <|.. TaskRepository
+  IRepository <|.. ReportRepository
+  IRepository <|.. FieldRepository
+  IRepository <|.. UserRepository
+
+  SensorRepository "1" o-- "0..*" Sensor              : sensorStore
+  SensorReadingRepository "1" o-- "0..*" SensorReading : readingStore
+  ProblemAreaRepository "1" o-- "0..*" ProblemArea     : zoneStore
+  InspectionRepository "1" o-- "0..*" FieldInspection  : inspectionStore
+  TaskRepository "1" o-- "0..*" Task                   : taskStore
+  ReportRepository "1" o-- "0..*" Report               : reportStore
+  FieldRepository "1" o-- "0..*" Field                 : fieldStore
+  UserRepository "1" o-- "0..*" User                   : userStore
+}
+
+package "Controllers" {
+
+  class CropMonitoringController {
+    +getReadingsByField(fieldId: String): List<SensorReading>
+    +getFieldsOverview(): List<Field>
+    +getProblemAreas(): List<ProblemArea>
+    +registerProblemArea(area: ProblemArea): void
+    +updateProblemArea(id: String, status: String): void
+  }
+  class AnalysisController {
+    +analyzeCurrentSituation(): void
+    +detectAnomalies(): List<ProblemArea>
+    +computeHealthIndex(fieldId: String): Double
+    +getAnalytics(): List<Object>
+  }
+  class EquipmentMonitoringController {
+    +getSensors(): List<Sensor>
+    +configureSensor(sensorId: String, newType: String, newCoords: String): void
+    +reportFault(sensorId: String, faultDescription: String): void
+    +scheduleRepair(sensorId: String): void
+  }
+  class InspectionController {
+    +getProblemZoneCoordinates(): List<ProblemArea>
+    +registerInspection(inspection: FieldInspection): void
+    +getInspectionsByField(fieldId: String): List<FieldInspection>
+    +updateInspection(inspection: FieldInspection): void
+  }
+  class TaskController {
+    +createTask(task: Task): void
+    +updateTaskStatus(taskId: String, status: String): void
+    +getPendingTasks(): List<Task>
+  }
+  class ReportController {
+    +generateReport(period: String, fieldIds: List<String>): Report
+    +getReports(period: String): List<Report>
+    +exportReport(reportId: String, format: String): void
+  }
+
+  CropMonitoringController "1" o-- "1" SensorReadingRepository : readingsRepo
+  CropMonitoringController "1" o-- "1" ProblemAreaRepository   : zonesRepo
+  CropMonitoringController "1" o-- "1" FieldRepository         : fieldsRepo
+  AnalysisController "1" o-- "1" SensorReadingRepository       : readingsRepo
+  AnalysisController "1" o-- "1" ProblemAreaRepository         : zonesRepo
+  EquipmentMonitoringController "1" o-- "1" SensorRepository   : sensorsRepo
+  InspectionController "1" o-- "1" InspectionRepository        : inspectionsRepo
+  InspectionController "1" o-- "1" ProblemAreaRepository       : zonesRepo
+  TaskController "1" o-- "1" TaskRepository                    : tasksRepo
+  TaskController "1" o-- "1" ProblemAreaRepository             : zonesRepo
+  ReportController "1" o-- "1" ReportRepository                : reportsRepo
+  ReportController "1" o-- "1" SensorReadingRepository         : readingsRepo
+
+  CropMonitoringController "1" ..> "0..*" ICropMonitoringView      : <<notifies>>
+  AnalysisController "1" ..> "0..*" ICropMonitoringView            : <<notifies>>
+  EquipmentMonitoringController "1" ..> "0..*" IEquipmentMonitoringView : <<notifies>>
+  InspectionController "1" ..> "0..*" IInspectionView              : <<notifies>>
+  TaskController "1" ..> "0..*" ITaskView                          : <<notifies>>
+  ReportController "1" ..> "0..*" IReportView                      : <<notifies>>
+}
+
+package "View" {
+
+  interface IView <<interface>> {
+    +render(data: Object): void
+    +update(data: Object): void
+  }
+  interface ICropMonitoringView <<interface>> {
+    +showFieldMap(fields: List<Field>, zones: List<ProblemArea>): void
+    +highlightProblemAreas(zones: List<ProblemArea>): void
+    +showReadings(readings: List<SensorReading>): void
+  }
+  interface IEquipmentMonitoringView <<interface>> {
+    +showSensorStatus(sensors: List<Sensor>): void
+    +showFaultAlert(sensorId: String, description: String): void
+  }
+  interface IInspectionView <<interface>> {
+    +showZoneCoordinates(zones: List<ProblemArea>): void
+    +submitInspectionForm(inspection: FieldInspection): void
+  }
+  interface ITaskView <<interface>> {
+    +showTasks(tasks: List<Task>): void
+    +showTaskForm(): void
+  }
+  interface IReportView <<interface>> {
+    +showReport(report: Report): void
+    +exportReport(report: Report, format: String): void
+  }
+
+  IView <|-- ICropMonitoringView
+  IView <|-- IEquipmentMonitoringView
+  IView <|-- IInspectionView
+  IView <|-- ITaskView
+  IView <|-- IReportView
+
+  abstract class BaseView {
+    +viewId: String
+    +render(data: Object): void
+    +update(data: Object): void
+  }
+  BaseView ..|> IView
+
+  ICropMonitoringView "1" o--> "1" CropMonitoringController       : controller
+  IEquipmentMonitoringView "1" o--> "1" EquipmentMonitoringController : controller
+  IInspectionView "1" o--> "1" InspectionController               : controller
+  ITaskView "1" o--> "1" TaskController                           : controller
+  IReportView "1" o--> "1" ReportController                       : controller
+}
+
+package "Startup & Infrastructure" {
+
+  class DependencyContainer <<injector>> {
+    -registry: Map<Class, Class>
+    +register(iface: Class, impl: Class): void
+    +resolve(iface: Class): Object
+    +createRepository(type: Class): Object
+    +createController(type: Class): Object
+    +createView(type: Class): Object
+  }
+
+  class PlantMonitoringApplication <<application>> {
+    -container: DependencyContainer
+    -controllers: List<Object>
+    -views: List<Object>
+    +main(args: String[]): void
+    +configure(): void
+    +run(): void
+    +shutdown(): void
+  }
+
+  PlantMonitoringApplication "1" *-- "1" DependencyContainer : container
+
+  DependencyContainer ..> IRepository                  : <<creates>>
+  DependencyContainer ..> CropMonitoringController      : <<creates>>
+  DependencyContainer ..> AnalysisController            : <<creates>>
+  DependencyContainer ..> EquipmentMonitoringController : <<creates>>
+  DependencyContainer ..> InspectionController          : <<creates>>
+  DependencyContainer ..> TaskController                : <<creates>>
+  DependencyContainer ..> ReportController              : <<creates>>
+  DependencyContainer ..> IView                         : <<creates>>
+
+  PlantMonitoringApplication ..> CropMonitoringController      : <<uses>>
+  PlantMonitoringApplication ..> AnalysisController            : <<uses>>
+  PlantMonitoringApplication ..> EquipmentMonitoringController : <<uses>>
+  PlantMonitoringApplication ..> InspectionController          : <<uses>>
+  PlantMonitoringApplication ..> TaskController                : <<uses>>
+  PlantMonitoringApplication ..> ReportController              : <<uses>>
+  PlantMonitoringApplication ..> IView                         : <<uses>>
+}
+
+@enduml
